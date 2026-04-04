@@ -32,7 +32,7 @@ MANIFEST
 # *.spec  <-- We want to track our manual spec files
 
 # Installer related
-*.iss
+# *.iss
 
 # Installer output
 ExtractarrSetup.exe
