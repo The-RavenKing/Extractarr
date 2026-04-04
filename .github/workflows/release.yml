@@ -49,9 +49,9 @@ jobs:
 
       - name: Build Installer (Inno Setup)
         run: |
-          $iscc = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          $iscc = (Get-ChildItem -Path "C:\Program Files*\Inno Setup *" -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
           if (-not $iscc) {
-              $iscc = (Get-ChildItem -Path "C:\Program Files*\Inno Setup *" -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+              $iscc = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
           }
           Write-Host "Using ISCC at: $iscc"
           & $iscc installer.iss
@@ -61,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: dist/ExtractarrSetup.exe
+          path: installer_dist/ExtractarrSetup.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -124,7 +124,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ExtractarrSetup.exe
-            extractarr-linux
+            windows-installer/ExtractarrSetup.exe
+            linux-executable/extractarr-linux
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
