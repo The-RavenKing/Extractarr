@@ -38,6 +38,11 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller pywin32 pypiwin32 pillow
 
+      - name: Create Icon
+        run: |
+          python -c "from PIL import Image; img = Image.open('logo.png'); img.save('logo.ico', format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)])"
+        shell: pwsh
+
       - name: Build Windows Executable
         run: |
           pyinstaller --noconfirm extractarr.spec --clean
@@ -48,12 +53,7 @@ jobs:
           if (-not $iscc) {
               $iscc = (Get-ChildItem -Path "C:\Program Files*\Inno Setup *" -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
           }
-          if (-not $iscc) {
-              Write-Error "ISCC.exe not found"
-              exit 1
-          }
           Write-Host "Using ISCC at: $iscc"
-          Get-ChildItem -Path dist\extractarr-service -Recurse
           & $iscc installer.iss
         shell: pwsh
 
