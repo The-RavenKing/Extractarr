@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+paramiko
+requests
+apscheduler
+python-multipart
+passlib[bcrypt]
+rarfile
+pyjwt
+# pywin32  # Only on Windows
