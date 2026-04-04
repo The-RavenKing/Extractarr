@@ -48,10 +48,75 @@ class ExtractarrService(win32serviceutil.ServiceFramework):
         if self.server_thread:
             self.server_thread.join()
 
+def is_running_as_service():
+    """Check if we were launched by the Windows Service Control Manager."""
+    import win32api
+    import win32con
+    try:
+        # SCM launches services with a specific desktop; interactive sessions have a different one
+        return win32api.GetConsoleTitle() == ''
+    except Exception:
+        return False
+
+
+def ensure_service_installed_and_running():
+    """Install and/or start the service, then open the UI in a browser."""
+    import subprocess
+    import webbrowser
+    import time
+    import ctypes
+
+    # Must be run as admin to install/start a service
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, " ".join(sys.argv), None, 1
+        )
+        return
+
+    exe = sys.executable if not getattr(sys, 'frozen', False) else sys.argv[0]
+
+    # Check current service state
+    try:
+        status = win32serviceutil.QueryServiceStatus(ExtractarrService._svc_name_)
+        state = status[1]
+    except Exception:
+        state = None  # Service not installed
+
+    if state is None:
+        print("Installing Extractarr service...")
+        subprocess.run([exe, "--startup", "auto", "install"], check=True)
+
+    try:
+        state = win32serviceutil.QueryServiceStatus(ExtractarrService._svc_name_)[1]
+    except Exception:
+        state = None
+
+    if state != win32service.SERVICE_RUNNING:
+        print("Starting Extractarr service...")
+        win32serviceutil.StartService(ExtractarrService._svc_name_)
+        # Wait up to 10s for it to come up
+        for _ in range(20):
+            time.sleep(0.5)
+            try:
+                if win32serviceutil.QueryServiceStatus(ExtractarrService._svc_name_)[1] == win32service.SERVICE_RUNNING:
+                    break
+            except Exception:
+                break
+
+    print("Opening Extractarr at http://localhost:29441 ...")
+    webbrowser.open("http://localhost:29441")
+
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        servicemanager.Initialize()
-        servicemanager.PrepareToHostSingle(ExtractarrService)
-        servicemanager.StartServiceCtrlDispatcher()
+        # Determine if SCM launched us (running as a service) or user double-clicked
+        try:
+            # If SCM launched this, StartServiceCtrlDispatcher will succeed quickly;
+            # if not (interactive), it raises an error - we catch that and self-install instead.
+            servicemanager.Initialize()
+            servicemanager.PrepareToHostSingle(ExtractarrService)
+            servicemanager.StartServiceCtrlDispatcher()
+        except win32service.error:
+            ensure_service_installed_and_running()
     else:
         win32serviceutil.HandleCommandLine(ExtractarrService)
