@@ -118,11 +118,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: windows-installer
+          path: windows-installer
 
       - name: Download Linux Artifact
         uses: actions/download-artifact@v4
         with:
           name: linux-executable
+          path: linux-executable
+
+      - name: List Files
+        run: ls -R
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
