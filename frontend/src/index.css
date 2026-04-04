@@ -64,7 +64,7 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--accent);
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .logo-icon {
@@ -73,6 +73,17 @@ body {
   min-width: 48px !important;
   min-height: 48px !important;
   object-fit: contain;
+}
+
+.logo-img {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  object-fit: contain;
+}
+
+.mobile-support-footer {
+  display: none;
 }
 
 .nav-items {
@@ -111,14 +122,22 @@ body {
   padding-top: 24px;
 }
 
+.sidebar-bottom-section {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.support-section {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
 .support-link {
   color: #f59e0b !important;
   text-decoration: none;
   font-weight: 600;
-  border-top: 1px solid var(--border);
-  padding-top: 16px !important;
-  border-radius: 0 !important;
-  margin-top: 0 !important;
+  border-radius: 8px !important;
 }
 
 .support-link:hover {
@@ -128,6 +147,7 @@ body {
 .sidebar-footer {
   padding-top: 20px;
   border-top: 1px solid var(--border);
+  padding-bottom: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -468,8 +488,12 @@ body {
 
   .logo {
     margin-bottom: 12px;
-    justify-content: space-between;
+    justify-content: center;
     font-size: 1.1rem;
+  }
+
+  .logo-img {
+    max-width: 160px;
   }
 
   .nav-items {
@@ -495,31 +519,19 @@ body {
     font-size: 0.7rem;
   }
 
-  .sidebar-footer {
-    display: flex;
-    padding-top: 12px;
-    margin-top: 12px;
+  .sidebar-bottom-section {
+    display: none;
+  }
+
+  .mobile-support-footer {
+    display: block;
+    background: var(--bg-sidebar);
     border-top: 1px solid var(--border);
-    gap: 8px;
+    padding: 4px 16px;
+  }
+
+  .mobile-support-footer .support-link {
     justify-content: center;
-    align-items: center;
-  }
-
-  .theme-toggle {
-    margin-bottom: 0;
-    padding: 8px;
-    flex: 1;
-    justify-content: center;
-  }
-
-  .theme-toggle span {
-    font-size: 0.75rem;
-  }
-
-  .power-button {
-    flex: 1;
-    padding: 8px;
-    font-size: 0.75rem;
   }
 
   .main-content {

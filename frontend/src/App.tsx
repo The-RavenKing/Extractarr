@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings, RefreshCw, Power, Activity, HardDrive, Server, Video, Tv, Clock, Terminal, Shield, Save, Music, Sun, Moon, Coffee, ExternalLink } from 'lucide-react';
-import logo from './assets/logo.png';
+import logo from './assets/logo2.png';
 
 interface LogEntry {
   ts: number;
@@ -399,8 +399,7 @@ export default function App() {
     <div className="app-container">
       <nav className="sidebar">
         <div className="logo">
-          <img src={logo} alt="Extractarr Logo" className="logo-icon" />
-          <span>Extractarr</span>
+          <img src={logo} alt="Extractarr Logo" className="logo-img" />
         </div>
         <div className="nav-items">
           <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
@@ -413,19 +412,21 @@ export default function App() {
             <Clock size={20} /> <span>Schedule</span>
           </button>
         </div>
-        <div className="sidebar-footer">
-          <button className="theme-toggle" onClick={toggleTheme}>
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-          </button>
-          <button className="power-button">
-            <Power size={20} /> Restart Server
-          </button>
-        </div>
-        <div className="sidebar-bottom">
-          <a href="https://buymeacoffee.com/Nat20labs" target="_blank" rel="noopener noreferrer" className="nav-item support-link">
-            <Coffee size={20} /> <span>Support Creator</span>
-          </a>
+        <div className="sidebar-bottom-section">
+          <div className="sidebar-footer">
+            <button className="theme-toggle" onClick={toggleTheme}>
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </button>
+            <button className="power-button">
+              <Power size={20} /> Restart Server
+            </button>
+          </div>
+          <div className="support-section">
+            <a href="https://buymeacoffee.com/Nat20labs" target="_blank" rel="noopener noreferrer" className="support-link nav-item">
+              <Coffee size={20} /> <span>Support Creator</span>
+            </a>
+          </div>
         </div>
       </nav>
 
@@ -438,6 +439,12 @@ export default function App() {
         </header>
         {renderContent()}
       </main>
+
+      <div className="mobile-support-footer">
+        <a href="https://buymeacoffee.com/Nat20labs" target="_blank" rel="noopener noreferrer" className="support-link nav-item">
+          <Coffee size={20} /> <span>Support Creator</span>
+        </a>
+      </div>
     </div>
   );
 }
