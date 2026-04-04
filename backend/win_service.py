@@ -37,7 +37,7 @@ class ExtractarrService(win32serviceutil.ServiceFramework):
     def main(self):
         import uvicorn
         # Run uvicorn server in a separate thread so we can block on the win32 event
-        config = uvicorn.Config(app=app, host="0.0.0.0", port=29441, loop="asyncio")
+        config = uvicorn.Config(app=app, host="0.0.0.0", port=29441, loop="asyncio", log_config=None)
         self.server = uvicorn.Server(config)
         
         self.server_thread = threading.Thread(target=self.server.run)
