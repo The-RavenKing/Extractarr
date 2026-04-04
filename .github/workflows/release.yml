@@ -23,6 +23,7 @@ jobs:
         run: |
           cd frontend
           npm install
+          # Vite build often requires specific env setup on GH runners
           npm run build
 
       - name: Set up Python
@@ -35,7 +36,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller pywin32
+          pip install pyinstaller pywin32 pypiwin32
 
       - name: Build Windows Executable
         run: |
@@ -43,7 +44,8 @@ jobs:
 
       - name: Build Installer (Inno Setup)
         run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          # ISCC.exe is pre-installed on windows-latest runners
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q installer.iss
         shell: powershell
 
       - name: Upload Windows Artifact
@@ -85,8 +87,7 @@ jobs:
 
       - name: Build Linux Executable
         run: |
-          # Use a modified spec or command for Linux (excluding windows-specific service)
-          pyinstaller --noconfirm --onefile --console --add-data "frontend/dist:frontend/dist" --name extractarr-linux backend/main.py
+          pyinstaller --noconfirm extractarr-linux.spec --clean
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4

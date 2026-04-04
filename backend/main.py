@@ -46,7 +46,7 @@ if getattr(sys, 'frozen', False):
     if os.name == 'nt':
         DATA_DIR = os.path.join(os.environ.get('PROGRAMDATA', 'C:\\ProgramData'), 'Extractarr', 'data')
     else:
-        DATA_DIR = os.path.join(os.path.dirname(sys.executable), 'data')
+        DATA_DIR = os.path.join(os.path.expanduser("~"), ".config", "extractarr", "data")
 else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     DATA_DIR = os.path.join(BASE_DIR, 'data')
@@ -72,7 +72,7 @@ def load_config() -> ExtractarrConfig:
     return ExtractarrConfig()
 
 def save_config(cfg: ExtractarrConfig):
-    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    Path(os.path.dirname(CONFIG_PATH)).mkdir(parents=True, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
         f.write(cfg.json(indent=2))
 
