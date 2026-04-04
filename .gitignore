@@ -29,7 +29,7 @@ MANIFEST
 # PyInstaller
 #  Usually these files are written by a python script, but may be manual
 *.manifest
-*.spec
+# *.spec  <-- We want to track our manual spec files
 
 # Installer related
 *.iss
