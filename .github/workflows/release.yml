@@ -54,6 +54,7 @@ jobs:
               $iscc = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
           }
           Write-Host "Using ISCC at: $iscc"
+          ls -R
           & $iscc installer.iss
         shell: pwsh
 
@@ -61,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: installer_dist/ExtractarrSetup.exe
+          path: Output/ExtractarrSetup.exe
 
   build-linux:
     runs-on: ubuntu-latest
