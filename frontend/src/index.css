@@ -97,9 +97,23 @@ body {
   color: var(--accent);
 }
 
+.support-link {
+  color: #f59e0b !important;
+  text-decoration: none;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.support-link:hover {
+  background-color: #f59e0b15 !important;
+}
+
 .sidebar-footer {
   padding-top: 20px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .power-button {

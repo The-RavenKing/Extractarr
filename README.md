@@ -32,6 +32,12 @@ If you want to build the installer yourself:
 2. Make it executable: `chmod +x extractarr-linux`
 3. Run it: `./extractarr-linux`
 
+## Support the Project
+
+If you find Extractarr useful and would like to support its development, you can buy me a coffee:
+
+[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >](https://buymeacoffee.com/Nat20labs)
+
 ## Prerequisites (Development)
 - Python 3.12+
 - Node.js & npm

@@ -184,6 +184,17 @@ async def run_workflow():
     state.workflow_thread.start()
     return {"status": "started"}
 
+from fastapi.responses import FileResponse
+
+# ... (other routes)
+
+@app.get("/logo.png")
+async def get_logo():
+    logo_path = os.path.join(BASE_DIR, "logo.png")
+    if os.path.exists(logo_path):
+        return FileResponse(logo_path)
+    raise HTTPException(status_code=404)
+
 # Serve Frontend (if built)
 frontend_path = os.path.join(BASE_DIR, "frontend", "dist")
 if os.path.exists(frontend_path):

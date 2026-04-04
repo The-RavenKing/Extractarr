@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Settings, RefreshCw, Power, Activity, HardDrive, Server, Video, Tv, Clock, Terminal, Shield, Save, Music, Sun, Moon } from 'lucide-react';
+import { Settings, RefreshCw, Power, Activity, HardDrive, Server, Video, Tv, Clock, Terminal, Shield, Save, Music, Sun, Moon, Coffee, ExternalLink } from 'lucide-react';
+import logo from './assets/logo.png';
 
 interface LogEntry {
   ts: number;
@@ -398,7 +399,7 @@ export default function App() {
     <div className="app-container">
       <nav className="sidebar">
         <div className="logo">
-          <RefreshCw className="logo-icon" />
+          <img src={logo} alt="Extractarr Logo" className="logo-icon" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           <span>Extractarr</span>
         </div>
         <div className="nav-items">
@@ -411,6 +412,11 @@ export default function App() {
           <button className={`nav-item ${activeTab === 'schedule' ? 'active' : ''}`} onClick={() => setActiveTab('schedule')}>
             <Clock size={20} /> <span>Schedule</span>
           </button>
+        </div>
+        <div className="sidebar-footer">
+          <a href="https://buymeacoffee.com/Nat20labs" target="_blank" rel="noopener noreferrer" className="nav-item support-link">
+            <Coffee size={20} /> <span>Support Creator</span>
+          </a>
         </div>
         <div className="sidebar-footer">
           <button className="theme-toggle" onClick={toggleTheme}>
