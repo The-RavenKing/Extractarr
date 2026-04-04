@@ -197,6 +197,7 @@ async def get_logo():
 
 # Serve Frontend (if built)
 frontend_path = os.path.join(BASE_DIR, "frontend", "dist")
+logger.info(f"Serving frontend from: {frontend_path}")
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 

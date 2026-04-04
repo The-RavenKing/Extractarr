@@ -52,8 +52,9 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding: 20px;
   transition: background-color 0.3s, border-color 0.3s;
+  overflow-y: auto;
 }
 
 .logo {
@@ -63,7 +64,15 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--accent);
-  margin-bottom: 40px;
+  margin-bottom: 24px;
+}
+
+.logo-icon {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+  object-fit: contain;
 }
 
 .nav-items {
@@ -97,14 +106,19 @@ body {
   color: var(--accent);
 }
 
+.sidebar-bottom {
+  margin-top: auto;
+  padding-top: 24px;
+}
+
 .support-link {
   color: #f59e0b !important;
   text-decoration: none;
   font-weight: 600;
-  margin-top: 16px;
   border-top: 1px solid var(--border);
   padding-top: 16px !important;
   border-radius: 0 !important;
+  margin-top: 0 !important;
 }
 
 .support-link:hover {

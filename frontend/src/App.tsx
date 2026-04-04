@@ -399,7 +399,7 @@ export default function App() {
     <div className="app-container">
       <nav className="sidebar">
         <div className="logo">
-          <img src={logo} alt="Extractarr Logo" className="logo-icon" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+          <img src={logo} alt="Extractarr Logo" className="logo-icon" />
           <span>Extractarr</span>
         </div>
         <div className="nav-items">
@@ -421,6 +421,8 @@ export default function App() {
           <button className="power-button">
             <Power size={20} /> Restart Server
           </button>
+        </div>
+        <div className="sidebar-bottom">
           <a href="https://buymeacoffee.com/Nat20labs" target="_blank" rel="noopener noreferrer" className="nav-item support-link">
             <Coffee size={20} /> <span>Support Creator</span>
           </a>
