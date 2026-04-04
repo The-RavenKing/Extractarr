@@ -44,15 +44,18 @@ jobs:
 
       - name: Build Installer (Inno Setup)
         run: |
-          for /f "delims=" %%i in ('where /r "C:\Program Files" ISCC.exe') do set "ISCC=%%i"
-          if not defined ISCC for /f "delims=" %%i in ('where /r "C:\Program Files (x86)" ISCC.exe') do set "ISCC=%%i"
-          if not defined ISCC (
-            echo ISCC.exe not found
-            exit 1
-          )
-          echo Using ISCC at: %ISCC%
-          "%ISCC%" /Q installer.iss
-        shell: cmd
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          if (-not $iscc) {
+              $iscc = (Get-ChildItem -Path "C:\Program Files*\Inno Setup *" -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          }
+          if (-not $iscc) {
+              Write-Error "ISCC.exe not found"
+              exit 1
+          }
+          Write-Host "Using ISCC at: $iscc"
+          Get-ChildItem -Path dist\extractarr-service -Recurse
+          & $iscc installer.iss
+        shell: pwsh
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
