@@ -1,4 +1,4 @@
-# Extractarr v2
+# Extractarr
 
 A modern, stable overhaul of the original Extractarr tool.
 
@@ -12,7 +12,7 @@ A modern, stable overhaul of the original Extractarr tool.
 
 ## Windows Support
 
-Extractarr v2 is designed to run natively as a Windows Service, ensuring it's always running in the background and starts automatically with your PC.
+Extractarr is designed to run natively as a Windows Service, ensuring it's always running in the background and starts automatically with your PC.
 
 ### Installation (Windows)
 1. Download the latest `ExtractarrSetup.exe` from the [GitHub Releases](https://github.com/The-RavenKing/Extractarr/releases).

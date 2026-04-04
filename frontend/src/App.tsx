@@ -399,7 +399,7 @@ export default function App() {
       <nav className="sidebar">
         <div className="logo">
           <RefreshCw className="logo-icon" />
-          <span>Extractarr v2 (Updated)</span>
+          <span>Extractarr</span>
         </div>
         <div className="nav-items">
           <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>

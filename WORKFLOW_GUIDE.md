@@ -1,4 +1,4 @@
-# Extractarr v2 Workflow Documentation
+# Extractarr Workflow Documentation
 
 This document outlines the end-to-end process that occurs when the Extractarr workflow is triggered (either manually via the Dashboard or automatically via the Scheduler).
 
@@ -56,7 +56,7 @@ This document outlines the end-to-end process that occurs when the Extractarr wo
     - Movies with unparseable names (all-caps, no year) are also quarantined for manual review.
 4.  **App API Scans**:
     - The engine sends a `DownloadedMoviesScan` (Radarr) or `DownloadedEpisodesScan` (Sonarr) command to the respective media app.
-    - **Wait for Completion**: Unlike v1, v2 waits for the app to acknowledge that the import is finished before proceeding.
+    - **Wait for Completion**: The engine waits for the app to acknowledge that the import is finished before proceeding.
     - If an import fails, the item is moved to **Quarantine** and logged.
 
 ---

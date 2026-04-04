@@ -39,7 +39,7 @@ jobs:
 
       - name: Build Windows Executable
         run: |
-          pyinstaller extractarr.spec --clean
+          pyinstaller --noconfirm extractarr.spec --clean
 
       - name: Build Installer (Inno Setup)
         run: |
