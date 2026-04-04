@@ -8,5 +8,6 @@ python-multipart
 passlib[bcrypt]
 rarfile
 pyjwt
+Pillow
 pypiwin32; sys_platform == 'win32'
 pywin32; sys_platform == 'win32'
