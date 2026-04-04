@@ -101,7 +101,10 @@ body {
   color: #f59e0b !important;
   text-decoration: none;
   font-weight: 600;
-  margin-top: 8px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px !important;
+  border-radius: 0 !important;
 }
 
 .support-link:hover {
