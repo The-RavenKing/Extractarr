@@ -23,7 +23,6 @@ jobs:
         run: |
           cd frontend
           npm install
-          # Vite build often requires specific env setup on GH runners
           npm run build
 
       - name: Set up Python
@@ -47,6 +46,19 @@ jobs:
         run: |
           pyinstaller --noconfirm extractarr.spec --clean
 
+      - name: Sign Executable
+        if: env.CODE_SIGN_PFX != ''
+        env:
+          CODE_SIGN_PFX: ${{ secrets.CODE_SIGN_PFX }}
+          CODE_SIGN_PASSWORD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [System.Convert]::FromBase64String($env:CODE_SIGN_PFX) | Set-Content $pfxPath -AsByteStream
+          $signtool = (Get-ChildItem -Path "C:\Program Files*\Windows Kits\*\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          & $signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f $pfxPath /p $env:CODE_SIGN_PASSWORD "dist\extractarr-service\extractarr-service.exe"
+          Remove-Item $pfxPath
+        shell: pwsh
+
       - name: Build Installer (Inno Setup)
         run: |
           $iscc = (Get-ChildItem -Path "C:\Program Files*\Inno Setup *" -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
@@ -59,6 +71,19 @@ jobs:
           }
           Write-Host "Using ISCC at: $iscc"
           & $iscc /O"Output" /F"ExtractarrSetup" (Join-Path $env:GITHUB_WORKSPACE "installer.iss")
+        shell: pwsh
+
+      - name: Sign Installer
+        if: env.CODE_SIGN_PFX != ''
+        env:
+          CODE_SIGN_PFX: ${{ secrets.CODE_SIGN_PFX }}
+          CODE_SIGN_PASSWORD: ${{ secrets.CODE_SIGN_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [System.Convert]::FromBase64String($env:CODE_SIGN_PFX) | Set-Content $pfxPath -AsByteStream
+          $signtool = (Get-ChildItem -Path "C:\Program Files*\Windows Kits\*\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          & $signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f $pfxPath /p $env:CODE_SIGN_PASSWORD "Output\ExtractarrSetup.exe"
+          Remove-Item $pfxPath
         shell: pwsh
 
       - name: Upload Windows Artifact
