@@ -8,7 +8,7 @@ a = Analysis(
     ['backend/win_service.py'],
     pathex=['backend'],
     binaries=[],
-    datas=[('frontend/dist', 'frontend/dist'), ('logo.png', '.')],
+    datas=[('frontend/dist', 'frontend/dist'), ('logo.png', '.'), ('source_app/qbittorrent_cleaner.py', 'source_app'), ('source_app/deluge_cleaner.py', 'source_app')],
     hiddenimports=[
         'win32timezone',
         'win32serviceutil',

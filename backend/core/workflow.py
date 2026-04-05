@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import logging
 import time
@@ -256,11 +257,11 @@ class WorkflowEngine:
             
             client_type = self.config.torrent_client.client_type
             cleaner_script = "deluge_cleaner.py" if client_type == "Deluge" else "qbittorrent_cleaner.py"
-            local_cleaner_path = os.path.join(os.path.dirname(__file__), "..", "..", "source_app", cleaner_script)
-            
-            # If not in the source_app (e.g. deployed), look in current dir or similar
-            if not os.path.exists(local_cleaner_path):
-                local_cleaner_path = cleaner_script
+            if getattr(sys, 'frozen', False):
+                base_dir = sys._MEIPASS
+            else:
+                base_dir = os.path.join(os.path.dirname(__file__), "..", "..")
+            local_cleaner_path = os.path.join(base_dir, "source_app", cleaner_script)
 
             remote_cleaner_path = f"{remote_scripts_path}/{cleaner_script}"
             
@@ -507,14 +508,14 @@ class WorkflowEngine:
     def _trigger_and_wait(self, app_name: str, url: str, api_key: str, command: str, path: str, media_type: str):
         headers = {"X-Api-Key": api_key}
         api_ver = "v3" if app_name != "Lidarr" else "v1"
-        endpoint = f"{url}/api/{api_ver}/command"
-        
+        endpoint = f"{url.rstrip('/')}/api/{api_ver}/command"
+
         payload = {"name": command, "path": path, "importMode": "Move"}
         try:
             self._log(f"Triggering {app_name} for {path}")
             resp = requests.post(endpoint, json=payload, headers=headers, timeout=15)
             if resp.status_code not in [200, 201, 202]:
-                self._log(f"{app_name} trigger failed: {resp.text}", "error")
+                self._log(f"{app_name} trigger failed (HTTP {resp.status_code}): {resp.text}", "error")
                 return
 
             task_id = resp.json().get("id")
