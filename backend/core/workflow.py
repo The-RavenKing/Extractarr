@@ -503,13 +503,40 @@ class WorkflowEngine:
                 self._log(f"{app_name}: import dir {import_dir} not found, skipping", "warn")
                 continue
 
-            import_subdirs = [d for d in os.listdir(import_dir) if os.path.isdir(os.path.join(import_dir, d))]
+            import_subdirs = sorted(
+                os.path.join(import_dir, d)
+                for d in os.listdir(import_dir)
+                if os.path.isdir(os.path.join(import_dir, d))
+            )
             if not import_subdirs:
                 self._log(f"{app_name}: import dir is empty, skipping trigger")
                 continue
 
             api_key = decrypt_secret(app_cfg.api_key)
-            self._trigger_and_wait(app_name, app_cfg.url, api_key, command, import_dir, media_type)
+            for import_path in import_subdirs:
+                self._trigger_and_wait(app_name, app_cfg.url, api_key, command, import_path, media_type)
+
+    def _media_extensions_for_type(self, media_type: str) -> Tuple[str, ...]:
+        mapping = {
+            "tv": (".mp4", ".mkv", ".avi"),
+            "movies": (".mp4", ".mkv", ".avi"),
+            "music": (".mp3", ".flac", ".m4a", ".wav"),
+        }
+        return mapping.get(media_type, ())
+
+    def _path_contains_media_files(self, path: str, media_type: str) -> bool:
+        if not os.path.exists(path):
+            return False
+
+        exts = self._media_extensions_for_type(media_type)
+        if not exts:
+            return False
+
+        for root, _, files in os.walk(path):
+            for name in files:
+                if name.lower().endswith(exts):
+                    return True
+        return False
 
     def trigger_arr_imports(self):
         """Public entry point: trigger Sonarr/Radarr/Lidarr without running the full workflow."""
@@ -597,10 +624,15 @@ class WorkflowEngine:
             resp = requests.post(endpoint, json=payload, headers=headers, timeout=15)
             if resp.status_code not in [200, 201, 202]:
                 self._log(f"{app_name} trigger failed (HTTP {resp.status_code}): {resp.text}", "error")
+                if self._path_contains_media_files(path, media_type):
+                    self._quarantine(path, media_type, f"{app_name} trigger failed")
                 return
 
             task_id = resp.json().get("id")
-            if not task_id: return
+            if not task_id:
+                if self._path_contains_media_files(path, media_type):
+                    self._quarantine(path, media_type, f"{app_name} trigger returned no task id")
+                return
 
             # Wait loop (up to 5 mins)
             for _ in range(60):
@@ -609,16 +641,29 @@ class WorkflowEngine:
                 if t_resp.status_code == 200:
                     status = t_resp.json().get("status")
                     if status == "completed":
-                        self._log(f"{app_name} import completed for {os.path.basename(path)}")
+                        if self._path_contains_media_files(path, media_type):
+                            self._log(
+                                f"{app_name} scan completed but files remain in {os.path.basename(path)}; quarantining",
+                                "warn",
+                            )
+                            self._quarantine(path, media_type, f"{app_name} could not import or match files")
+                        else:
+                            self._log(f"{app_name} import completed for {os.path.basename(path)}")
                         return
                     if status == "failed":
                         self._log(f"{app_name} import FAILED for {os.path.basename(path)}: {t_resp.json().get('message')}", "error")
+                        if self._path_contains_media_files(path, media_type):
+                            self._quarantine(path, media_type, f"{app_name} import failed")
                         return
                 else:
                     break
             self._log(f"{app_name} wait timeout for {os.path.basename(path)}", "warn")
+            if self._path_contains_media_files(path, media_type):
+                self._quarantine(path, media_type, f"{app_name} import timeout")
         except Exception as e:
             self._log(f"Error triggering {app_name}: {str(e)}", "error")
+            if self._path_contains_media_files(path, media_type):
+                self._quarantine(path, media_type, f"{app_name} trigger error")
 
     def _cleanup_staging(self, folder: str):
         try:
@@ -628,4 +673,3 @@ class WorkflowEngine:
                 else: os.remove(path)
         except Exception as e:
             self._log(f"Staging cleanup warning for {folder}: {str(e)}", "warn")
-
