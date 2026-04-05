@@ -74,7 +74,7 @@ def load_config() -> ExtractarrConfig:
 def save_config(cfg: ExtractarrConfig):
     Path(os.path.dirname(CONFIG_PATH)).mkdir(parents=True, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
-        f.write(cfg.json(indent=2))
+        f.write(cfg.model_dump_json(indent=2))
 
 def sync_scheduler():
     # Clear existing jobs
@@ -130,12 +130,12 @@ app.add_middleware(
 @app.get("/api/config")
 async def get_config():
     # Strip sensitive info for frontend
-    cfg_json = state.config.dict()
+    cfg_json = state.config.model_dump()
     # Mask secrets
     def mask_secrets(obj):
         if isinstance(obj, dict):
             for k, v in obj.items():
-                if k.endswith("_pass") or k.endswith("_api_key"):
+                if k.endswith("_pass") or k == "api_key" or k.endswith("_api_key"):
                     obj[k] = "********" if v else ""
                 else:
                     mask_secrets(v)
@@ -149,7 +149,7 @@ async def get_config():
 @app.post("/api/config")
 async def update_config(new_cfg: Dict[str, Any]):
     # Merge new config with existing to preserve encrypted secrets if not provided
-    current_dict = state.config.dict()
+    current_dict = state.config.model_dump()
     
     def merge_configs(target, source):
         for k, v in source.items():
@@ -166,9 +166,9 @@ async def update_config(new_cfg: Dict[str, Any]):
     
     merge_configs(current_dict, new_cfg)
     state.config = ExtractarrConfig(**current_dict)
-    save_config(state.config)
     state.workflow.config = state.config
     sync_scheduler()
+    save_config(state.config)
     return {"status": "success"}
 
 @app.get("/api/status")

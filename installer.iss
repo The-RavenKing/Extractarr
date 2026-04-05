@@ -1,6 +1,6 @@
 [Setup]
 AppName=Extractarr
-AppVersion=1.1.10
+AppVersion=1.1.11
 DefaultDirName={autopf}\Extractarr
 DefaultGroupName=Extractarr
 UninstallDisplayIcon={app}\extractarr-service.exe

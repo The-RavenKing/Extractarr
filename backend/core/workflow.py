@@ -2,6 +2,7 @@ import os
 import shutil
 import logging
 import time
+import stat
 import requests
 import paramiko
 import re
@@ -192,7 +193,7 @@ class WorkflowEngine:
                 for entry in sftp.listdir_attr(remote_dir):
                     rempath = remote_dir + "/" + entry.filename
                     locpath = os.path.join(local_dir, entry.filename)
-                    if paramiko.SAttribute(entry.st_mode).is_dir():
+                    if stat.S_ISDIR(entry.st_mode):
                         download_dir(rempath, locpath)
                     else:
                         self._log(f"Downloading {entry.filename}...")
@@ -215,7 +216,7 @@ class WorkflowEngine:
                 locpath = os.path.join(local_path, entry.filename)
                 
                 self._update_progress(5 + int((i / total) * 30), f"Downloading {entry.filename}")
-                if paramiko.SAttribute(entry.st_mode).is_dir():
+                if stat.S_ISDIR(entry.st_mode):
                     download_dir(rempath, locpath)
                 else:
                     sftp.get(rempath, locpath)
@@ -242,10 +243,10 @@ class WorkflowEngine:
             # Determine seeding path
             seeding_path = remote_path.replace("/main", "/seeding").replace("/downloaded", "/seeding")
             if "/seeding" not in seeding_path:
-                 seeding_path = "/home31/arikitty13/downloads/seeding" # Hardcoded fallback from v1
-            
-            # Derived from v1: Scripts path
-            remote_base = remote_path.rsplit('/', 1)[0] if '/' in remote_path else "/home31/arikitty13/downloads"
+                seeding_path = remote_path + "/seeding"
+
+            # Derived from remote path: Scripts path
+            remote_base = remote_path.rsplit('/', 1)[0] if '/' in remote_path else remote_path
             remote_scripts_path = f"{remote_base}/scripts"
             
             try:
@@ -255,7 +256,7 @@ class WorkflowEngine:
             
             client_type = self.config.torrent_client.client_type
             cleaner_script = "deluge_cleaner.py" if client_type == "Deluge" else "qbittorrent_cleaner.py"
-            local_cleaner_path = os.path.join("source_app", "Users", "AriKi", "Documents", "Extractor", cleaner_script)
+            local_cleaner_path = os.path.join(os.path.dirname(__file__), "..", "..", "source_app", cleaner_script)
             
             # If not in the source_app (e.g. deployed), look in current dir or similar
             if not os.path.exists(local_cleaner_path):
@@ -272,8 +273,8 @@ class WorkflowEngine:
             if client_type == "Deluge":
                 # Ensure deluge-client is installed
                 client.exec_command("pip3 install --user deluge-client")
-                deluge_host = self.config.torrent_client.deluge_host or "169.150.223.207"
-                deluge_port = self.config.torrent_client.deluge_port or "25256"
+                deluge_host = self.config.torrent_client.deluge_host
+                deluge_port = self.config.torrent_client.deluge_port
                 deluge_time = self.config.torrent_client.max_seed_time
                 deluge_ratio = self.config.torrent_client.max_seed_ratio
                 cmd = f"python3 {remote_cleaner_path} --host {deluge_host} --port {deluge_port} --dest {seeding_path} --max-seed-time {deluge_time} --max-seed-ratio {deluge_ratio}"
