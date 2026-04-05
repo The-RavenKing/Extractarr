@@ -180,8 +180,17 @@ async def get_status():
 async def run_workflow():
     if state.workflow.state.running:
         raise HTTPException(status_code=400, detail="Workflow is already running")
-    
+
     state.workflow_thread = threading.Thread(target=state.workflow.run)
+    state.workflow_thread.start()
+    return {"status": "started"}
+
+@app.post("/api/trigger-imports")
+async def trigger_imports():
+    if state.workflow.state.running:
+        raise HTTPException(status_code=400, detail="Workflow is already running")
+
+    state.workflow_thread = threading.Thread(target=state.workflow.trigger_arr_imports)
     state.workflow_thread.start()
     return {"status": "started"}
 

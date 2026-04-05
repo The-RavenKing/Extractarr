@@ -433,70 +433,110 @@ class WorkflowEngine:
 
     def _step_import_triggers(self):
         self._update_progress(70, "Processing final moves and import triggers")
-        
-        # Mapping: (type, source_staging, target_import, extensions, app_name, app_cfg, command)
+
+        # Mapping: (type, source_staging, target_import, extensions)
         configs = [
-            ("tv", self.config.paths.tv_source, self.config.paths.tv_import, [".mp4", ".mkv", ".avi"], "Sonarr", self.config.sonarr, "DownloadedEpisodesScan"),
-            ("movies", self.config.paths.movies_source, self.config.paths.movies_import, [".mp4", ".mkv", ".avi"], "Radarr", self.config.radarr, "DownloadedMoviesScan"),
-            ("music", self.config.paths.music_source, self.config.paths.music_import, [".mp3", ".flac", ".m4a", ".wav"], "Lidarr", self.config.lidarr, "DownloadedAlbumsScan"),
+            ("tv",     self.config.paths.tv_source,     self.config.paths.tv_import,     [".mp4", ".mkv", ".avi"]),
+            ("movies", self.config.paths.movies_source, self.config.paths.movies_import, [".mp4", ".mkv", ".avi"]),
+            ("music",  self.config.paths.music_source,  self.config.paths.music_import,  [".mp3", ".flac", ".m4a", ".wav"]),
         ]
 
-        for media_type, source, target, exts, app_name, app_cfg, command in configs:
-            if not source or not target or not os.path.exists(source):
+        for media_type, source, target, exts in configs:
+            if not target:
                 continue
-            
+
             os.makedirs(target, exist_ok=True)
             self._sweep_stale_rejects(target, media_type)
-            
-            self._log(f"Processing {media_type} moves to {target}")
-            
-            # Step 1: Move media files from staging to import
-            current_moved = set()
-            for root, _, files in os.walk(source):
-                for f in files:
-                    if any(f.lower().endswith(ext) for ext in exts):
-                        src_file = os.path.join(root, f)
-                        
-                        # V1: Check sample tag
-                        if self._should_quarantine(f):
-                            self._quarantine(src_file, media_type, "Filter tag detected (sample/trailer)")
-                            continue
-                        
-                        # Move loose file to its own folder in import area
-                        folder_name = os.path.splitext(f)[0]
-                        dest_folder = os.path.join(target, folder_name)
-                        os.makedirs(dest_folder, exist_ok=True)
-                        
-                        dest_file = os.path.join(dest_folder, f)
-                        try:
-                            if os.path.exists(dest_file):
-                                self._log(f"Skipping {f}, already exists in {dest_folder}", "warn")
-                            else:
-                                shutil.move(src_file, dest_file)
-                                current_moved.add(dest_folder)
-                                self._log(f"Moved {f} to {dest_folder}")
-                        except Exception as e:
-                            self._log(f"Failed to move {f}: {str(e)}", "error")
 
-            # Step 2: Quarantine filters on the moved folders
-            filtered_paths = set()
-            for path in current_moved:
-                leaf = os.path.basename(path)
-                if media_type == "tv" and self._is_tv_season_pack_no_episode(leaf):
-                    self._quarantine(path, media_type, "Season pack without episode")
-                elif media_type == "movies" and self._is_movie_unparseable(path):
-                    self._quarantine(path, media_type, "Likely unparseable movie name")
-                else:
-                    filtered_paths.add(path)
+            if source and os.path.exists(source):
+                self._log(f"Processing {media_type} moves to {target}")
 
-            # Step 3: Trigger App Import and WAIT
-            if app_cfg.enabled and app_cfg.url and app_cfg.api_key and filtered_paths:
-                api_key = decrypt_secret(app_cfg.api_key)
-                for path in filtered_paths:
-                    self._trigger_and_wait(app_name, app_cfg.url, api_key, command, path, media_type)
-            
-            # Step 4: Cleanup staging
-            self._cleanup_staging(source)
+                current_moved = set()
+                for root, _, files in os.walk(source):
+                    for f in files:
+                        if any(f.lower().endswith(ext) for ext in exts):
+                            src_file = os.path.join(root, f)
+
+                            if self._should_quarantine(f):
+                                self._quarantine(src_file, media_type, "Filter tag detected (sample/trailer)")
+                                continue
+
+                            folder_name = os.path.splitext(f)[0]
+                            dest_folder = os.path.join(target, folder_name)
+                            os.makedirs(dest_folder, exist_ok=True)
+                            dest_file = os.path.join(dest_folder, f)
+                            try:
+                                if os.path.exists(dest_file):
+                                    self._log(f"Skipping {f}, already exists in {dest_folder}", "warn")
+                                else:
+                                    shutil.move(src_file, dest_file)
+                                    current_moved.add(dest_folder)
+                                    self._log(f"Moved {f} to {dest_folder}")
+                            except Exception as e:
+                                self._log(f"Failed to move {f}: {str(e)}", "error")
+
+                for path in list(current_moved):
+                    leaf = os.path.basename(path)
+                    if media_type == "tv" and self._is_tv_season_pack_no_episode(leaf):
+                        self._quarantine(path, media_type, "Season pack without episode")
+                    elif media_type == "movies" and self._is_movie_unparseable(path):
+                        self._quarantine(path, media_type, "Likely unparseable movie name")
+
+                self._cleanup_staging(source)
+
+        # Trigger arr imports for all import dirs that have content
+        self._do_arr_triggers()
+
+    def _do_arr_triggers(self):
+        """Scan all configured import directories and trigger Sonarr/Radarr/Lidarr."""
+        arr_configs = [
+            ("tv",     self.config.paths.tv_import,     "Sonarr", self.config.sonarr, "DownloadedEpisodesScan"),
+            ("movies", self.config.paths.movies_import, "Radarr", self.config.radarr, "DownloadedMoviesScan"),
+            ("music",  self.config.paths.music_import,  "Lidarr", self.config.lidarr, "DownloadedAlbumsScan"),
+        ]
+
+        for media_type, import_dir, app_name, app_cfg, command in arr_configs:
+            if not import_dir or not app_cfg.enabled or not app_cfg.url or not app_cfg.api_key:
+                continue
+
+            if not os.path.isdir(import_dir):
+                self._log(f"{app_name}: import dir {import_dir} not found, skipping", "warn")
+                continue
+
+            import_subdirs = [d for d in os.listdir(import_dir) if os.path.isdir(os.path.join(import_dir, d))]
+            if not import_subdirs:
+                self._log(f"{app_name}: import dir is empty, skipping trigger")
+                continue
+
+            api_key = decrypt_secret(app_cfg.api_key)
+            self._trigger_and_wait(app_name, app_cfg.url, api_key, command, import_dir, media_type)
+
+    def trigger_arr_imports(self):
+        """Public entry point: trigger Sonarr/Radarr/Lidarr without running the full workflow."""
+        if self.state.running:
+            return
+
+        self.state.running = True
+        self.state.start_time = time.time()
+        self.state.percent = 0
+        self.state.message = "Triggering Arr imports"
+        self.state.exit_code = None
+        self.state.logs = []
+        self._smb_connections = []
+
+        try:
+            self._connect_smb_shares()
+            self._do_arr_triggers()
+            self._update_progress(100, "Arr import triggers completed")
+            self.state.exit_code = 0
+        except Exception as e:
+            self._log(f"Arr trigger failed: {str(e)}", "error")
+            self.state.exit_code = 1
+            self.state.message = f"Error: {str(e)}"
+        finally:
+            self._disconnect_smb_shares()
+            self.state.running = False
+            self.state.end_time = time.time()
 
     def _sweep_stale_rejects(self, import_root: str, media_type: str):
         if not os.path.exists(import_root): return
@@ -573,8 +613,6 @@ class WorkflowEngine:
                         return
                     if status == "failed":
                         self._log(f"{app_name} import FAILED for {os.path.basename(path)}: {t_resp.json().get('message')}", "error")
-                        # Quarantine on failure as in V1
-                        self._quarantine(path, media_type, f"{app_name} scan failed")
                         return
                 else:
                     break

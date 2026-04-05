@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, RefreshCw, Power, Activity, HardDrive, Server, Video, Tv, Clock, Terminal, Shield, Save, Music, Sun, Moon, Coffee, ExternalLink } from 'lucide-react';
+import { Settings, RefreshCw, Power, Activity, HardDrive, Server, Video, Tv, Clock, Terminal, Shield, Save, Music, Sun, Moon, Coffee, ExternalLink, Download } from 'lucide-react';
 import logo from './assets/logo2.png';
 
 interface LogEntry {
@@ -24,6 +24,7 @@ export default function App() {
   const [status, setStatus] = useState<WorkflowState | null>(null);
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
 
@@ -74,6 +75,18 @@ export default function App() {
       console.error("Failed to run workflow", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTriggerImports = async () => {
+    try {
+      setImportLoading(true);
+      await fetch('/api/trigger-imports', { method: 'POST' });
+      fetchStatus();
+    } catch (e) {
+      console.error("Failed to trigger imports", e);
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -143,9 +156,15 @@ export default function App() {
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${status?.percent || 0}%` }}></div>
         </div>
-        <button className="run-button" disabled={status?.running || loading} onClick={handleRun}>
-          {status?.running ? 'Running...' : 'Run Workflow Now'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button className="run-button" disabled={status?.running || loading} onClick={handleRun} style={{ flex: 1 }}>
+            {status?.running ? 'Running...' : 'Run Workflow Now'}
+          </button>
+          <button className="run-button" disabled={status?.running || importLoading} onClick={handleTriggerImports} style={{ flex: 1, background: 'var(--accent-secondary, #6366f1)' }}>
+            <Download size={16} style={{ display: 'inline', marginRight: '0.4rem', verticalAlign: 'middle' }} />
+            {(status?.running && status?.message?.includes('Arr')) ? 'Triggering...' : 'Trigger Arr Imports'}
+          </button>
+        </div>
       </div>
 
       <div className="logs-section card">
