@@ -156,10 +156,11 @@ async def update_config(new_cfg: Dict[str, Any]):
             if isinstance(v, dict) and k in target and isinstance(target[k], dict):
                 merge_configs(target[k], v)
             else:
-                if (k.endswith("_pass") or k.endswith("_api_key")) and v == "********":
-                    # Keep existing encrypted secret
+                is_masked = k.endswith("_pass") or k == "api_key" or k.endswith("_api_key")
+                if is_masked and v == "********":
+                    # Keep existing value — do not overwrite with the mask placeholder
                     continue
-                if (k.endswith("_pass") or k.endswith("_api_key")) and v:
+                if k.endswith("_pass") and v:
                     target[k] = encrypt_secret(v)
                 else:
                     target[k] = v
