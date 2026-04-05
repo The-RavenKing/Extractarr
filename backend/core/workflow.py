@@ -348,34 +348,75 @@ class WorkflowEngine:
             self._remove_samples(folder)
 
         # 3. Sorting loose items in the root of LocalDownloadPath (if any)
+        # Category directory names used by torrent clients (e.g. qBittorrent save-path categories)
+        _CATEGORY_TV     = {"tv", "television", "shows", "series", "episodes"}
+        _CATEGORY_MOVIES = {"movies", "movie", "films", "film"}
+        _CATEGORY_MUSIC  = {"music", "audio"}
+
+        staging_paths = {staging_tv, staging_movies, staging_music}
+
         for item in os.listdir(local_path):
             item_path = os.path.join(local_path, item)
-            if item in ["TV", "Movies", "Music"] or item_path in [staging_tv, staging_movies, staging_music]:
+
+            # Skip items that ARE a staging directory (compare case-insensitively for Windows)
+            if any(item_path.lower() == p.lower() for p in staging_paths):
                 continue
-            
-            target = None
+
+            name_lower = item.lower()
+
+            # Category-named subdirectory: unpack contents directly into the right staging area
             if os.path.isdir(item_path):
-                # Heuristic
+                if name_lower in _CATEGORY_TV:
+                    cat_target = staging_tv
+                elif name_lower in _CATEGORY_MOVIES:
+                    cat_target = staging_movies
+                elif name_lower in _CATEGORY_MUSIC:
+                    cat_target = staging_music
+                else:
+                    cat_target = None
+
+                if cat_target:
+                    for sub in os.listdir(item_path):
+                        src = os.path.join(item_path, sub)
+                        dst = os.path.join(cat_target, sub)
+                        try:
+                            self._log(f"Sorting {sub} → {cat_target} (via category folder '{item}')")
+                            shutil.move(src, dst)
+                        except Exception as e:
+                            self._log(f"Failed to sort {sub}: {str(e)}", "error")
+                    try:
+                        os.rmdir(item_path)
+                    except Exception:
+                        pass
+                    continue
+
+                # Unknown directory — fall back to name heuristic
                 if re.search(r"S\d{1,2}E\d{1,2}|S\d{1,2}|[0-9]{1,2}x[0-9]{1,2}", item, re.I):
                     target = staging_tv
                 else:
                     target = staging_movies
-            elif os.path.isfile(item_path):
-                ext = os.path.splitext(item)[1].lower()
-                if ext in [".mp4", ".mkv", ".avi"]:
-                     if re.search(r"S\d{1,2}E\d{1,2}|S\d{1,2}|[0-9]{1,2}x[0-9]{1,2}", item, re.I):
-                        target = staging_tv
-                     else:
-                        target = staging_movies
-                elif ext in [".mp3", ".flac", ".m4a"]:
-                    target = staging_music
-            
-            if target:
                 try:
                     self._log(f"Sorting {item} to {target}")
                     shutil.move(item_path, os.path.join(target, item))
                 except Exception as e:
                     self._log(f"Failed to sort {item}: {str(e)}", "error")
+
+            elif os.path.isfile(item_path):
+                ext = os.path.splitext(item)[1].lower()
+                target = None
+                if ext in [".mp4", ".mkv", ".avi"]:
+                    if re.search(r"S\d{1,2}E\d{1,2}|S\d{1,2}|[0-9]{1,2}x[0-9]{1,2}", item, re.I):
+                        target = staging_tv
+                    else:
+                        target = staging_movies
+                elif ext in [".mp3", ".flac", ".m4a"]:
+                    target = staging_music
+                if target:
+                    try:
+                        self._log(f"Sorting {item} to {target}")
+                        shutil.move(item_path, os.path.join(target, item))
+                    except Exception as e:
+                        self._log(f"Failed to sort {item}: {str(e)}", "error")
 
     def _remove_samples(self, folder: str):
         for root, _, files in os.walk(folder):
