@@ -103,7 +103,13 @@ class WorkflowEngine:
                 raise RuntimeError("Invalid SFTP host key format: missing key data")
 
             try:
-                decoded = base64.b64decode(key_data.encode("ascii"))
+                # Add padding if missing (base64 length must be multiple of 4)
+                padded_data = key_data
+                missing_padding = len(padded_data) % 4
+                if missing_padding:
+                    padded_data += "=" * (4 - missing_padding)
+
+                decoded = base64.b64decode(padded_data.encode("ascii"))
                 key_obj = key_cls(data=decoded)
                 host_keys.add(host, key_type, key_obj)
                 host_keys.add(f"[{host}]:{self.config.sftp_port}", key_type, key_obj)
