@@ -61,65 +61,7 @@ class WorkflowEngine:
     def _create_ssh_client(self) -> paramiko.SSHClient:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
-
-        from core.utils import decrypt_secret
-        host_key = (self.config.sftp_host_key or "").strip()
-        host_key = decrypt_secret(host_key)
-        
-        if host_key:
-            host_keys = client.get_host_keys()
-            host = self.config.sftp_host
-
-            parts = host_key.split()
-            key_types = {
-                "ssh-ed25519": paramiko.Ed25519Key,
-                "ssh-rsa": paramiko.RSAKey,
-                "ecdsa-sha2-nistp256": paramiko.ECDSAKey,
-                "ecdsa-sha2-nistp384": paramiko.ECDSAKey,
-                "ecdsa-sha2-nistp521": paramiko.ECDSAKey,
-            }
-
-            key_type = None
-            key_data = None
-            key_cls = None
-
-            # Try to find a known key type among the parts
-            for i, part in enumerate(parts):
-                if part in key_types:
-                    key_type = part
-                    key_cls = key_types[part]
-                    # The next part that looks like base64 is likely the data
-                    for j in range(i + 1, len(parts)):
-                        if len(parts[j]) > 20:
-                            key_data = parts[j]
-                            break
-                    break
-
-            # Fallback for simple "type data" if no known type found yet
-            if not key_type and len(parts) >= 2:
-                key_type, key_data = parts[0], parts[1]
-                key_cls = key_types.get(key_type)
-
-            if not key_cls:
-                raise RuntimeError(f"Unsupported SFTP host key type: {key_type or 'unknown'}")
-            if not key_data:
-                raise RuntimeError("Invalid SFTP host key format: missing key data")
-
-            try:
-                # Add padding if missing (base64 length must be multiple of 4)
-                padded_data = key_data
-                missing_padding = len(padded_data) % 4
-                if missing_padding:
-                    padded_data += "=" * (4 - missing_padding)
-
-                decoded = base64.b64decode(padded_data.encode("ascii"))
-                key_obj = key_cls(data=decoded)
-                host_keys.add(host, key_type, key_obj)
-                host_keys.add(f"[{host}]:{self.config.sftp_port}", key_type, key_obj)
-            except Exception as e:
-                raise RuntimeError(f"Failed to parse SFTP host key: {str(e)}")
-
-        client.set_missing_host_key_policy(paramiko.RejectPolicy())
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         return client
 
     def run(self):

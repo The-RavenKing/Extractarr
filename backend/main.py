@@ -73,7 +73,7 @@ state = GlobalState()
 
 
 def is_secret_field(key: str) -> bool:
-    return key.endswith("_pass") or key == "api_key" or key.endswith("_api_key") or key.endswith("host_key")
+    return key.endswith("_pass") or key == "api_key" or key.endswith("_api_key")
 
 
 def ensure_auth_config(cfg: ExtractarrConfig) -> bool:
