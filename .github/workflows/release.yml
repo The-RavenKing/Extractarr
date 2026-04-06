@@ -22,7 +22,7 @@ jobs:
       - name: Build Frontend
         run: |
           cd frontend
-          npm install
+          npm ci
           npm run build
 
       - name: Set up Python
@@ -36,6 +36,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller pywin32 pypiwin32 pillow
+
+      - name: Run Backend Tests
+        run: |
+          pytest -q
 
       - name: Create Icon
         run: |
@@ -108,7 +112,7 @@ jobs:
       - name: Build Frontend
         run: |
           cd frontend
-          npm install
+          npm ci
           npm run build
 
       - name: Set up Python
@@ -122,6 +126,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+
+      - name: Run Backend Tests
+        run: |
+          pytest -q
 
       - name: Build Linux Executable
         run: |

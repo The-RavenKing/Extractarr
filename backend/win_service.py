@@ -7,7 +7,7 @@ import win32event
 import threading
 
 # Import the FastAPI app from main
-from main import app
+from main import app, load_config, resolve_bind_host_port
 
 class ExtractarrService(win32serviceutil.ServiceFramework):
     _svc_name_ = "Extractarr"
@@ -36,8 +36,10 @@ class ExtractarrService(win32serviceutil.ServiceFramework):
 
     def main(self):
         import uvicorn
+        cfg = load_config()
+        host, port = resolve_bind_host_port(cfg)
         # Run uvicorn server in a separate thread so we can block on the win32 event
-        config = uvicorn.Config(app=app, host="0.0.0.0", port=29441, loop="asyncio", log_config=None)
+        config = uvicorn.Config(app=app, host=host, port=port, loop="asyncio", log_config=None)
         self.server = uvicorn.Server(config)
         
         self.server_thread = threading.Thread(target=self.server.run)
@@ -103,8 +105,11 @@ def ensure_service_installed_and_running():
             except Exception:
                 break
 
-    print("Opening Extractarr at http://localhost:29441 ...")
-    webbrowser.open("http://localhost:29441")
+    cfg = load_config()
+    host, port = resolve_bind_host_port(cfg)
+    browser_host = "localhost" if host in {"127.0.0.1", "0.0.0.0"} else host
+    print(f"Opening Extractarr at http://{browser_host}:{port} ...")
+    webbrowser.open(f"http://{browser_host}:{port}")
 
 
 if __name__ == '__main__':

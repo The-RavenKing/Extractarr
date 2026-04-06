@@ -31,7 +31,7 @@ a = Analysis(
         'paramiko',
         'requests',
         'apscheduler',
-        'passlib.handlers.bcrypt',
+        'passlib.handlers.pbkdf2',
         'rarfile',
         'jwt'
     ],

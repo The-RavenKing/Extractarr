@@ -8,7 +8,12 @@ a = Analysis(
     ['backend/main.py'],
     pathex=['backend'],
     binaries=[],
-    datas=[('frontend/dist', 'frontend/dist')],
+    datas=[
+        ('frontend/dist', 'frontend/dist'),
+        ('logo.png', '.'),
+        ('source_app/qbittorrent_cleaner.py', 'source_app'),
+        ('source_app/deluge_cleaner.py', 'source_app'),
+    ],
     hiddenimports=[
         'uvicorn.logging',
         'uvicorn.loops',
@@ -26,7 +31,7 @@ a = Analysis(
         'paramiko',
         'requests',
         'apscheduler',
-        'passlib.handlers.bcrypt',
+        'passlib.handlers.pbkdf2',
         'rarfile',
         'jwt'
     ],

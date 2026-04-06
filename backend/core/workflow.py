@@ -1,4 +1,6 @@
 import os
+import base64
+import json
 import sys
 import shutil
 import logging
@@ -7,6 +9,7 @@ import stat
 import requests
 import paramiko
 import re
+import shlex
 import subprocess
 from typing import List, Dict, Any, Optional, Callable, Set, Tuple
 from pydantic import BaseModel
@@ -54,6 +57,43 @@ class WorkflowEngine:
         self.state.percent = percent
         self.state.message = message
         self._log(f"[{percent}%] {message}")
+
+    def _create_ssh_client(self) -> paramiko.SSHClient:
+        client = paramiko.SSHClient()
+        client.load_system_host_keys()
+
+        host_key = (self.config.sftp_host_key or "").strip()
+        if host_key:
+            host_keys = client.get_host_keys()
+            host = self.config.sftp_host
+
+            if " " in host_key:
+                parts = host_key.split()
+                if len(parts) == 2:
+                    key_type, key_data = parts
+                elif len(parts) >= 3:
+                    _, key_type, key_data = parts[:3]
+                else:
+                    raise RuntimeError("Invalid SFTP host key format")
+            else:
+                raise RuntimeError("Invalid SFTP host key format")
+
+            key_cls = {
+                "ssh-ed25519": paramiko.Ed25519Key,
+                "ssh-rsa": paramiko.RSAKey,
+                "ecdsa-sha2-nistp256": paramiko.ECDSAKey,
+                "ecdsa-sha2-nistp384": paramiko.ECDSAKey,
+                "ecdsa-sha2-nistp521": paramiko.ECDSAKey,
+            }.get(key_type)
+            if not key_cls:
+                raise RuntimeError(f"Unsupported SFTP host key type: {key_type}")
+
+            decoded = base64.b64decode(key_data.encode("ascii"))
+            host_keys.add(host, key_type, key_cls(data=decoded))
+            host_keys.add(f"[{host}]:{self.config.sftp_port}", key_type, key_cls(data=decoded))
+
+        client.set_missing_host_key_policy(paramiko.RejectPolicy())
+        return client
 
     def run(self):
         if self.state.running:
@@ -181,8 +221,7 @@ class WorkflowEngine:
                  raise RuntimeError(f"Failed to create LocalDownloadPath {local_path}: {str(e)}")
 
         try:
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client = self._create_ssh_client()
             client.connect(host, port=port, username=user, password=password, timeout=30)
             sftp = client.open_sftp()
             
@@ -236,8 +275,7 @@ class WorkflowEngine:
         remote_path = self.config.remote_path
         
         try:
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client = self._create_ssh_client()
             client.connect(host, port=port, username=user, password=password)
             sftp = client.open_sftp()
 
@@ -264,6 +302,7 @@ class WorkflowEngine:
             local_cleaner_path = os.path.join(base_dir, "source_app", cleaner_script)
 
             remote_cleaner_path = f"{remote_scripts_path}/{cleaner_script}"
+            remote_creds_path = f"{remote_scripts_path}/{client_type.lower()}_creds.json"
             
             if os.path.exists(local_cleaner_path):
                 self._log(f"Uploading {cleaner_script} to remote")
@@ -272,38 +311,82 @@ class WorkflowEngine:
                 self._log(f"Local cleaner script not found at {local_cleaner_path}, skipping upload", "warn")
 
             if client_type == "Deluge":
-                # Ensure deluge-client is installed
-                client.exec_command("pip3 install --user deluge-client")
                 deluge_host = self.config.torrent_client.deluge_host
                 deluge_port = self.config.torrent_client.deluge_port
                 deluge_time = self.config.torrent_client.max_seed_time
                 deluge_ratio = self.config.torrent_client.max_seed_ratio
-                cmd = f"python3 {remote_cleaner_path} --host {deluge_host} --port {deluge_port} --dest {seeding_path} --max-seed-time {deluge_time} --max-seed-ratio {deluge_ratio}"
+                deluge_creds = json.dumps(
+                    {
+                        "host": deluge_host,
+                        "port": deluge_port,
+                    }
+                )
+                with sftp.file(remote_creds_path, "w") as remote_creds_file:
+                    remote_creds_file.write(deluge_creds)
+                cmd = " ".join(
+                    [
+                        "python3",
+                        shlex.quote(remote_cleaner_path),
+                        "--creds-file",
+                        shlex.quote(remote_creds_path),
+                        "--dest",
+                        shlex.quote(seeding_path),
+                        "--max-seed-time",
+                        shlex.quote(str(deluge_time)),
+                        "--max-seed-ratio",
+                        shlex.quote(str(deluge_ratio)),
+                    ]
+                )
             else:
-                # qBittorrent
-                client.exec_command("pip3 install --user qbittorrent-api")
                 qbit_pass = decrypt_secret(self.config.torrent_client.qbit_pass)
                 qbit_time = self.config.torrent_client.max_seed_time
                 qbit_ratio = self.config.torrent_client.max_seed_ratio
-                cmd = f"python3 {remote_cleaner_path} --host {self.config.torrent_client.qbit_url} --username {self.config.torrent_client.qbit_user} --password {qbit_pass} --dest {seeding_path} --max-seed-time {qbit_time} --max-seed-ratio {qbit_ratio}"
+                qbit_creds = json.dumps(
+                    {
+                        "host": self.config.torrent_client.qbit_url,
+                        "username": self.config.torrent_client.qbit_user,
+                        "password": qbit_pass,
+                    }
+                )
+                with sftp.file(remote_creds_path, "w") as remote_creds_file:
+                    remote_creds_file.write(qbit_creds)
+                cmd = " ".join(
+                    [
+                        "python3",
+                        shlex.quote(remote_cleaner_path),
+                        "--creds-file",
+                        shlex.quote(remote_creds_path),
+                        "--dest",
+                        shlex.quote(seeding_path),
+                        "--max-seed-time",
+                        shlex.quote(str(qbit_time)),
+                        "--max-seed-ratio",
+                        shlex.quote(str(qbit_ratio)),
+                    ]
+                )
 
-            self._log(f"Executing remote cleanup: {cmd}")
-            stdin, stdout, stderr = client.exec_command(cmd)
-            exit_status = stdout.channel.recv_exit_status()
-            
-            out_str = stdout.read().decode()
-            err_str = stderr.read().decode()
-            
-            if exit_status != 0:
-                self._log(f"Remote cleanup failed (Exit {exit_status})", "error")
-                self._log(f"STDOUT: {out_str}")
-                self._log(f"STDERR: {err_str}", "error")
-            else:
-                self._log("Remote cleanup successful")
-                self._log(out_str)
-            
-            sftp.close()
-            client.close()
+            self._log(f"Executing remote cleanup for {client_type}")
+            try:
+                stdin, stdout, stderr = client.exec_command(cmd)
+                exit_status = stdout.channel.recv_exit_status()
+                
+                out_str = stdout.read().decode()
+                err_str = stderr.read().decode()
+                
+                if exit_status != 0:
+                    self._log(f"Remote cleanup failed (Exit {exit_status})", "error")
+                    self._log(f"STDOUT: {out_str}")
+                    self._log(f"STDERR: {err_str}", "error")
+                else:
+                    self._log("Remote cleanup successful")
+                    self._log(out_str)
+            finally:
+                try:
+                    sftp.remove(remote_creds_path)
+                except Exception:
+                    pass
+                sftp.close()
+                client.close()
         except Exception as e:
             self._log(f"Remote cleanup failed: {str(e)}", "warn")
 
@@ -320,34 +403,9 @@ class WorkflowEngine:
         for p in [staging_tv, staging_movies, staging_music]:
             os.makedirs(p, exist_ok=True)
 
-        # 1. Extraction (Recursive in staging areas)
-        extraction_targets = [
-            ("tv", staging_tv),
-            ("movies", staging_movies),
-            ("music", staging_music)
-        ]
-        
-        for media_type, folder in extraction_targets:
-            if not os.path.exists(folder): continue
-            self._log(f"Scanning {media_type} staging for archives: {folder}")
-            for root, _, files in os.walk(folder):
-                for file in files:
-                    if file.lower().endswith((".rar", ".zip")):
-                        archive_path = os.path.join(root, file)
-                        self._log(f"Extracting {archive_path} to {root}")
-                        try:
-                            if file.lower().endswith(".rar"):
-                                subprocess.run([unrar_path, "x", "-o-", archive_path, root + os.sep, "-y"], check=True, capture_output=True)
-                            else: # zip
-                                shutil.unpack_archive(archive_path, root)
-                        except Exception as e:
-                            self._log(f"Failed to extract {archive_path}: {str(e)}", "error")
+        extraction_targets = [("tv", staging_tv), ("movies", staging_movies), ("music", staging_music)]
 
-        # 2. Sample Removal (V1 new_archive_extract.ps1 Step 2)
-        for _, folder in extraction_targets:
-            self._remove_samples(folder)
-
-        # 3. Sorting loose items in the root of LocalDownloadPath (if any)
+        # 1. Sorting loose items in the root of LocalDownloadPath (if any)
         # Category directory names used by torrent clients (e.g. qBittorrent save-path categories)
         _CATEGORY_TV     = {"tv", "television", "shows", "series", "episodes"}
         _CATEGORY_MOVIES = {"movies", "movie", "films", "film"}
@@ -417,6 +475,28 @@ class WorkflowEngine:
                         shutil.move(item_path, os.path.join(target, item))
                     except Exception as e:
                         self._log(f"Failed to sort {item}: {str(e)}", "error")
+
+        # 2. Extraction (Recursive in staging areas after sorting)
+        for media_type, folder in extraction_targets:
+            if not os.path.exists(folder):
+                continue
+            self._log(f"Scanning {media_type} staging for archives: {folder}")
+            for root, _, files in os.walk(folder):
+                for file in files:
+                    if file.lower().endswith((".rar", ".zip")):
+                        archive_path = os.path.join(root, file)
+                        self._log(f"Extracting {archive_path} to {root}")
+                        try:
+                            if file.lower().endswith(".rar"):
+                                subprocess.run([unrar_path, "x", "-o-", archive_path, root + os.sep, "-y"], check=True, capture_output=True)
+                            else:
+                                shutil.unpack_archive(archive_path, root)
+                        except Exception as e:
+                            self._log(f"Failed to extract {archive_path}: {str(e)}", "error")
+
+        # 3. Sample Removal (V1 new_archive_extract.ps1 Step 2)
+        for _, folder in extraction_targets:
+            self._remove_samples(folder)
 
     def _remove_samples(self, folder: str):
         for root, _, files in os.walk(folder):
@@ -598,8 +678,13 @@ class WorkflowEngine:
         return False
 
     def _quarantine(self, path: str, media_type: str, reason: str):
-        # Quarantine root relative to TV import
-        base_import = os.path.dirname(self.config.paths.tv_import) if self.config.paths.tv_import else "C:\\Downloads\\Quarantine"
+        import_roots = {
+            "tv": self.config.paths.tv_import,
+            "movies": self.config.paths.movies_import,
+            "music": self.config.paths.music_import,
+        }
+        preferred_import = import_roots.get(media_type) or self.config.local_download_path or os.getcwd()
+        base_import = os.path.dirname(preferred_import.rstrip("\\/")) or preferred_import
         q_root = os.path.join(base_import, "Quarantine", media_type)
         os.makedirs(q_root, exist_ok=True)
         

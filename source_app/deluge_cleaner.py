@@ -4,6 +4,7 @@ import os
 import argparse
 import logging
 import time
+import json
 from deluge_client import DelugeRPCClient
 
 # Configure logging
@@ -17,6 +18,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TARGET_LABELS = {"tv", "movies", "music"}
+
+def load_creds_file(path):
+    if not path:
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as e:
+        logger.error(f"Failed to read creds file '{path}': {e}")
+        return {}
 
 def _decode_value(value):
     if isinstance(value, bytes):
@@ -53,6 +65,7 @@ def main():
     parser.add_argument("--port", type=int, default=58846, help="Deluge daemon port")
     parser.add_argument("--username", help="Deluge username")
     parser.add_argument("--password", help="Deluge password")
+    parser.add_argument("--creds-file", help="Path to JSON file containing host/port/username/password")
     parser.add_argument("--dest", required=True, help="Destination directory for completed torrents")
     parser.add_argument("--max-seed-time", type=float, default=14.0, help="Maximum seeding time in days")
     parser.add_argument("--max-seed-ratio", type=float, default=2.0, help="Maximum seeding ratio")
@@ -60,8 +73,11 @@ def main():
 
     args = parser.parse_args()
 
-    username = args.username
-    password = args.password
+    file_creds = load_creds_file(args.creds_file)
+    host = args.host if args.host != "127.0.0.1" else file_creds.get("host", args.host)
+    port = args.port if args.port != 58846 else int(file_creds.get("port", args.port))
+    username = args.username or file_creds.get("username")
+    password = args.password or file_creds.get("password")
 
     if not username or not password:
         local_user, local_pass = get_auth_from_config()
@@ -76,7 +92,7 @@ def main():
     max_ratio = args.max_seed_ratio
 
     try:
-        client = DelugeRPCClient(args.host, args.port, username, password)
+        client = DelugeRPCClient(host, port, username, password)
         client.connect()
         logger.info("Connected to Deluge daemon.")
         logger.info(f"Seeding limits: {args.max_seed_time} days or {max_ratio} ratio")

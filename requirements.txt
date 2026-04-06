@@ -9,5 +9,7 @@ passlib[bcrypt]
 rarfile
 pyjwt
 Pillow
+pytest
+httpx
 pypiwin32; sys_platform == 'win32'
 pywin32; sys_platform == 'win32'

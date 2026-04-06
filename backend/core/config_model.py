@@ -10,8 +10,9 @@ class WebAuthSettings(BaseModel):
     username: str = "admin"
     password_hash: str = ""
     secret_key: str = Field(default_factory=lambda: "")
+    require_password_change: bool = False
     host: str = "127.0.0.1"
-    port: int = 0
+    port: int = 29441
 
 
 class TorrentClientSettings(BaseModel):
