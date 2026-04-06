@@ -62,7 +62,10 @@ class WorkflowEngine:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
 
+        from core.utils import decrypt_secret
         host_key = (self.config.sftp_host_key or "").strip()
+        host_key = decrypt_secret(host_key)
+        
         if host_key:
             host_keys = client.get_host_keys()
             host = self.config.sftp_host
